@@ -5,10 +5,13 @@ import { useMemo, useState } from "react";
 import { usePlanner } from "@/lib/store";
 import { hoursRange, isoDate, timeToLabel, cn } from "@/lib/utils";
 import type { BlockItem } from "@/types/scheduler";
-import { useDraggable, useDroppable } from "@dnd-kit/core";
+import { useDroppable } from "@dnd-kit/core";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import dynamic from "next/dynamic";
+
+import { DraggableBlock } from "./draggable-block";
 
 const HOURS = hoursRange(6, 22);
 
@@ -28,6 +31,7 @@ export function WeeklyCalendar() {
   function handleQuickAdd() {
     if (!quickAdd || !title.trim()) return;
     const d = days[quickAdd.dayIdx];
+    if (!d) return;
     const start = isoDate(setMinutes(setHours(d, quickAdd.hour), 0));
     const end = isoDate(setMinutes(setHours(d, quickAdd.hour + 1), 0));
     addTask({ title: title.trim(), category: "Inbox", scheduledStart: start, scheduledEnd: end });
@@ -123,9 +127,3 @@ function CalendarBlock({ day, item }: { day: Date; item: BlockItem }) {
   );
 }
 
-function DraggableBlock({ id, item, children }: { id: string; item: BlockItem; children: React.ReactNode }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id, data: { kind: item.type, id: item.id } });
-  return (
-    <div ref={setNodeRef} {...listeners} {...attributes} className={cn(isDragging && "opacity-50")}>{children}</div>
-  );
-}
