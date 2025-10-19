@@ -108,7 +108,7 @@ function CalendarBlock({ day, item }: { day: Date; item: BlockItem }) {
   const height = (+(end) - +start) / 3600000 * 64;
 
   return (
-    <DraggableBlock id={item.id}>
+    <DraggableBlock id={item.id} item={item}>
       <motion.div layout className="absolute left-2 right-2 rounded-md p-2 text-xs shadow-lg"
         style={{ top: Math.max(0, top), height: Math.max(28, height), backgroundColor: item.color }}>
         <div className="font-medium text-white/90 truncate">{item.title}</div>
@@ -123,8 +123,8 @@ function CalendarBlock({ day, item }: { day: Date; item: BlockItem }) {
   );
 }
 
-function DraggableBlock({ id, children }: { id: string; children: React.ReactNode }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id, data: { kind: "event" } });
+function DraggableBlock({ id, item, children }: { id: string; item: BlockItem; children: React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id, data: { kind: item.type, id: item.id } });
   return (
     <div ref={setNodeRef} {...listeners} {...attributes} className={cn(isDragging && "opacity-50")}>{children}</div>
   );
