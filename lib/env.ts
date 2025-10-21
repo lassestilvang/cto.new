@@ -8,5 +8,5 @@ export const env = {
 };
 
 export function isDemo() {
-  return env.USE_DEMO_DATA !== "false" && (!env.DATABASE_URL || !env.UPSTASH_REDIS_URL);
+  return env.USE_DEMO_DATA !== "false" || (!env.DATABASE_URL || !env.UPSTASH_REDIS_URL);
 }

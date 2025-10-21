@@ -49,7 +49,13 @@ const initialState: PlannerState = {
 };
 
 function overlaps(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date) {
-  return aStart < bEnd && bStart < aEnd;
+  return aStart.getTime() < bEnd.getTime() && bStart.getTime() < aEnd.getTime();
+}
+
+function isSameDayUTC(a: Date, b: Date) {
+  return a.getUTCFullYear() === b.getUTCFullYear() &&
+         a.getUTCMonth() === b.getUTCMonth() &&
+         a.getUTCDate() === b.getUTCDate();
 }
 
 export const usePlanner = create<PlannerStore>()(
@@ -159,9 +165,9 @@ export const usePlanner = create<PlannerStore>()(
         const dateStr = formatISO(d, { representation: "date" });
         for (const it of Object.values(get().items)) {
           if (it.type === "event") {
-            if (isSameDay(new Date(it.start), d)) result.push(it);
+            if (isSameDayUTC(new Date(it.start), d)) result.push(it);
           } else {
-            if (it.scheduledStart && isSameDay(new Date(it.scheduledStart), d)) result.push(it);
+            if (it.scheduledStart && isSameDayUTC(new Date(it.scheduledStart), d)) result.push(it);
           }
         }
         return result.sort((a, b) => {

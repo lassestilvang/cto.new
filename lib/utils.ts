@@ -10,7 +10,7 @@ export function hoursRange(start = 6, end = 22) {
 }
 
 export function timeToLabel(hour: number) {
-  const h = hour % 24;
+  const h = ((hour % 24) + 24) % 24;
   const suffix = h >= 12 ? "PM" : "AM";
   const disp = h % 12 === 0 ? 12 : h % 12;
   return `${disp}:00 ${suffix}`;
