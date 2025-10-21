@@ -1,129 +1,250 @@
 "use client";
 
-import { addDays, format, parseISO, setHours, setMinutes, startOfDay } from "date-fns";
+import { addDays, format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, addHours } from "date-fns";
 import { useMemo, useState } from "react";
 import { usePlanner } from "@/lib/store";
-import { hoursRange, isoDate, timeToLabel, cn } from "@/lib/utils";
+import { isoDate } from "@/lib/utils";
 import type { BlockItem } from "@/types/scheduler";
-import { useDroppable } from "@dnd-kit/core";
-import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import dynamic from "next/dynamic";
+import FullCalendar from "@fullcalendar/react";
+import timeGridPlugin from "@fullcalendar/timegrid";
+import dayGridPlugin from "@fullcalendar/daygrid";
+import interactionPlugin from "@fullcalendar/interaction";
+import type { EventInput } from "@fullcalendar/core";
+import { toast } from "sonner";
+import { EditItemDialog } from "@/components/edit-item-dialog";
 
-import { DraggableBlock } from "./draggable-block";
-
-const HOURS = hoursRange(6, 22);
-
-export function WeeklyCalendar() {
+export function WeeklyCalendar({ view = 'week', draggedItem }: { view?: 'week' | 'day' | 'month'; draggedItem?: { id: string; kind: string } | null }) {
   const weekStart = usePlanner(s => s.weekStart);
   const getItemsForDay = usePlanner(s => s.getItemsForDay);
   const addTask = usePlanner(s => s.addTask);
-  const [quickAdd, setQuickAdd] = useState<{ dayIdx: number; hour: number } | null>(null);
+  const goToWeek = usePlanner(s => s.goToWeek);
+  const scheduleTask = usePlanner(s => s.scheduleTask);
+  const moveEvent = usePlanner(s => s.moveEvent);
+  const updateItem = usePlanner(s => s.updateItem);
+  const conflictsAt = usePlanner(s => s.conflictsAt);
+  const [quickAdd, setQuickAdd] = useState<{ start: Date; end: Date } | null>(null);
   const [title, setTitle] = useState("");
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const draggedItemState = draggedItem || null;
 
-  const days = useMemo(() => Array.from({ length: 5 }, (_, i) => addDays(parseISO(weekStart), i)), [weekStart]);
+  const days = useMemo(() => {
+    if (view === 'day') {
+      return [parseISO(weekStart)];
+    }
+    if (view === 'month') {
+      const monthStart = startOfMonth(parseISO(weekStart));
+      const monthEnd = endOfMonth(parseISO(weekStart));
+      return eachDayOfInterval({ start: monthStart, end: monthEnd });
+    }
+    return Array.from({ length: 5 }, (_, i) => addDays(parseISO(weekStart), i));
+  }, [weekStart, view]);
 
-  function handleSlotClick(dayIdx: number, hour: number) {
-    setQuickAdd({ dayIdx, hour });
+  const events: EventInput[] = useMemo(() => {
+    const allItems: BlockItem[] = [];
+    days.forEach(day => {
+      allItems.push(...getItemsForDay(day));
+    });
+    return allItems.map(item => {
+      const start = item.type === "event" ? item.start : item.scheduledStart;
+      const end = item.type === "event" ? item.end : item.scheduledEnd;
+      if (!start || !end) return null;
+      return {
+        id: item.id,
+        title: item.title,
+        start,
+        end,
+        backgroundColor: item.color,
+        textColor: "#ffffff",
+        extendedProps: {
+          category: item.category,
+          type: item.type,
+          sharedLabel: item.type === "event" ? item.sharedLabel : undefined,
+        },
+      };
+    }).filter(Boolean) as EventInput[];
+  }, [days, getItemsForDay]);
+
+  function handleSelect(selectInfo: any) {
+    setQuickAdd({ start: selectInfo.start, end: selectInfo.end });
   }
 
   function handleQuickAdd() {
     if (!quickAdd || !title.trim()) return;
-    const d = days[quickAdd.dayIdx];
-    if (!d) return;
-    const start = isoDate(setMinutes(setHours(d, quickAdd.hour), 0));
-    const end = isoDate(setMinutes(setHours(d, quickAdd.hour + 1), 0));
-    addTask({ title: title.trim(), category: "Inbox", scheduledStart: start, scheduledEnd: end });
+    addTask({
+      title: title.trim(),
+      category: "Inbox",
+      scheduledStart: isoDate(quickAdd.start),
+      scheduledEnd: isoDate(quickAdd.end)
+    });
     setTitle("");
     setQuickAdd(null);
   }
 
+  function handleDatesSet(dateInfo: any) {
+    const newWeekStart = format(dateInfo.start, "yyyy-MM-dd");
+    if (newWeekStart !== weekStart) {
+      if (view === 'day') {
+        // For day view, navigate by day instead of week
+        const offset = Math.round((new Date(newWeekStart).getTime() - new Date(weekStart).getTime()) / (24 * 60 * 60 * 1000));
+        goToWeek(offset);
+      } else if (view === 'month') {
+        // For month view, set weekStart to the start of the displayed month
+        const monthStart = startOfMonth(dateInfo.start);
+        const newWeekStartISO = format(monthStart, "yyyy-MM-dd");
+        if (newWeekStartISO !== weekStart) {
+          const offset = Math.round((new Date(newWeekStartISO).getTime() - new Date(weekStart).getTime()) / (7 * 24 * 60 * 60 * 1000));
+          goToWeek(offset);
+        }
+      } else {
+        const offset = Math.round((new Date(newWeekStart).getTime() - new Date(weekStart).getTime()) / (7 * 24 * 60 * 60 * 1000));
+        goToWeek(offset);
+      }
+    }
+  }
+
+  function handleExternalDrop(dropInfo: any) {
+    if (!draggedItemState) return;
+    const { id, kind } = draggedItemState;
+    const start = dropInfo.date;
+    const end = addHours(start, 1); // Default 1-hour duration
+    const startISO = isoDate(start);
+    const endISO = isoDate(end);
+    try {
+      if (kind === "task") {
+        scheduleTask(id, startISO, endISO);
+        toast.success("Task scheduled");
+      } else if (kind === "event") {
+        moveEvent(id, startISO, endISO);
+        toast.success("Event moved");
+      }
+    } catch (err: any) {
+      toast.error(err.message ?? "Unable to schedule due to conflict");
+    }
+  }
+
+  function handleExternalDragStart(dragInfo: any) {
+    // This will be set from the parent DndContext
+  }
+
+  function handleEventResize(resizeInfo: any) {
+    const eventId = resizeInfo.event.id;
+    const newStart = resizeInfo.event.start;
+    const newEnd = resizeInfo.event.end;
+    const startISO = isoDate(newStart);
+    const endISO = isoDate(newEnd);
+
+    try {
+      const item = usePlanner.getState().items[eventId];
+      if (!item) throw new Error("Item not found");
+
+      const conflicts = conflictsAt(startISO, endISO, eventId);
+      if (conflicts.length) throw new Error("Conflicts with existing items");
+
+      if (item.type === "event") {
+        updateItem(eventId, { start: startISO, end: endISO });
+        toast.success("Event resized");
+      } else if (item.type === "task") {
+        updateItem(eventId, { scheduledStart: startISO, scheduledEnd: endISO });
+        toast.success("Task resized");
+      }
+    } catch (err: any) {
+      resizeInfo.revert();
+      toast.error(err.message ?? "Unable to resize due to conflict");
+    }
+  }
+
+  function handleEventDrop(dropInfo: any) {
+    const eventId = dropInfo.event.id;
+    const newStart = dropInfo.event.start;
+    const newEnd = dropInfo.event.end;
+    const startISO = isoDate(newStart);
+    const endISO = isoDate(newEnd);
+
+    try {
+      const item = usePlanner.getState().items[eventId];
+      if (!item) throw new Error("Item not found");
+
+      const conflicts = conflictsAt(startISO, endISO, eventId);
+      if (conflicts.length) throw new Error("Conflicts with existing items");
+
+      if (item.type === "event") {
+        updateItem(eventId, { start: startISO, end: endISO });
+        toast.success("Event moved");
+      } else if (item.type === "task") {
+        updateItem(eventId, { scheduledStart: startISO, scheduledEnd: endISO });
+        toast.success("Task moved");
+      }
+    } catch (err: any) {
+      dropInfo.revert();
+      toast.error(err.message ?? "Unable to move due to conflict");
+    }
+  }
+
+  function handleEventClick(clickInfo: any) {
+    const eventId = clickInfo.event.id;
+    setEditingItemId(eventId);
+  }
+
   return (
     <div className="flex-1 min-h-0 overflow-hidden">
-      <div className="grid grid-cols-[60px_repeat(5,1fr)] h-full">
-        <TimeColumn />
-        {days.map((d, i) => (
-          <DayColumn key={i} day={d} dayIdx={i} onSlotClick={handleSlotClick} items={getItemsForDay(d)} />
-        ))}
-      </div>
+      <FullCalendar
+        plugins={[timeGridPlugin, dayGridPlugin, interactionPlugin]}
+        initialView={view === 'day' ? 'timeGridDay' : view === 'month' ? 'dayGridMonth' : 'timeGridWeek'}
+        weekends={false}
+        slotMinTime="06:00:00"
+        slotMaxTime="22:00:00"
+        height="100%"
+        events={events}
+        selectable={view !== 'month'}
+        select={view !== 'month' ? handleSelect : undefined}
+        datesSet={handleDatesSet}
+        initialDate={parseISO(weekStart)}
+        headerToolbar={false}
+        dayHeaderFormat={view === 'day' ? { weekday: 'long', day: 'numeric', month: 'short' } : view === 'month' ? { weekday: 'short' } : { weekday: 'short', day: 'numeric' }}
+        slotDuration={view === 'month' ? undefined : "01:00:00"}
+        slotLabelFormat={view === 'month' ? undefined : { hour: 'numeric', meridiem: false }}
+        droppable={true}
+        drop={handleExternalDrop}
+        eventReceive={handleExternalDrop}
+        editable={view !== 'month'}
+        eventResize={view !== 'month' ? handleEventResize : undefined}
+        eventDrop={view !== 'month' ? handleEventDrop : undefined}
+        eventClick={handleEventClick}
+        eventContent={(eventInfo) => (
+          <div className={`p-1 ${view === 'month' ? 'text-[10px]' : 'text-xs'}`}>
+            <div className="font-medium truncate">{eventInfo.event.title}</div>
+            {view !== 'month' && (
+              <div className="flex items-center justify-between opacity-80">
+                <span>{eventInfo.event.extendedProps.category}</span>
+                {eventInfo.event.extendedProps.sharedLabel && (
+                  <span className="ml-1 bg-black/20 rounded px-1 text-[10px]">{eventInfo.event.extendedProps.sharedLabel}</span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      />
 
       {quickAdd ? (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-popover border border-border rounded-lg p-2 shadow">
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-popover border border-border rounded-lg p-2 shadow z-50">
           <div className="flex gap-2 items-center">
-            <Input autoFocus placeholder="New task title" value={title} onChange={e => setTitle(e.target.value)} onKeyDown={e => e.key === "Enter" && handleQuickAdd()} />
+            <Input
+              autoFocus
+              placeholder="New task title"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleQuickAdd()}
+            />
             <Button onClick={handleQuickAdd}>Add</Button>
             <Button variant="ghost" onClick={() => setQuickAdd(null)}>Cancel</Button>
           </div>
         </div>
       ) : null}
+
+      <EditItemDialog itemId={editingItemId} onClose={() => setEditingItemId(null)} />
     </div>
-  );
-}
-
-function TimeColumn() {
-  return (
-    <div className="border-r border-border">
-      <div className="h-10 border-b border-border" />
-      {HOURS.map(h => (
-        <div key={h} className="h-16 text-[10px] text-muted-foreground px-2 border-b border-border flex items-start pt-1">
-          {timeToLabel(h)}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function DayColumn({ day, dayIdx, items, onSlotClick }: { day: Date; dayIdx: number; items: BlockItem[]; onSlotClick: (dayIdx: number, hour: number) => void }) {
-  return (
-    <div className="relative border-r border-border min-w-0">
-      <div className="h-10 border-b border-border px-2 flex items-center justify-between">
-        <div className="text-sm">
-          <span className="font-medium mr-1">{format(day, "EEE")}</span>
-          <span className="text-muted-foreground">{format(day, "d")}</span>
-        </div>
-      </div>
-      <div className="relative">
-        {HOURS.map(h => (
-          <HourSlot key={h} day={day} dayIdx={dayIdx} hour={h} onClick={() => onSlotClick(dayIdx, h)} />
-        ))}
-        {items.map(it => (
-          <CalendarBlock key={it.id} day={day} item={it} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function HourSlot({ day, dayIdx, hour, onClick }: { day: Date; dayIdx: number; hour: number; onClick: () => void }) {
-  const id = `${format(day, "yyyy-MM-dd")}-${hour}`;
-  const { setNodeRef } = useDroppable({ id, data: { type: "slot", dayIdx, hour } });
-  return (
-    <div ref={setNodeRef} className="h-16 border-b border-border/60 hover:bg-accent/30 transition-colors relative" onClick={onClick} />
-  );
-}
-
-function CalendarBlock({ day, item }: { day: Date; item: BlockItem }) {
-  const start = item.type === "event" ? new Date(item.start) : item.scheduledStart ? new Date(item.scheduledStart) : null;
-  const end = item.type === "event" ? new Date(item.end) : item.scheduledEnd ? new Date(item.scheduledEnd) : null;
-  if (!start || !end) return null;
-  const dayStart = startOfDay(day);
-  const top = ((+start - +setHours(dayStart, 6)) / 3600000) * 64; // 64px per hour from 6
-  const height = (+(end) - +start) / 3600000 * 64;
-
-  return (
-    <DraggableBlock id={item.id} item={item}>
-      <motion.div layout className="absolute left-2 right-2 rounded-md p-2 text-xs shadow-lg"
-        style={{ top: Math.max(0, top), height: Math.max(28, height), backgroundColor: item.color }}>
-        <div className="font-medium text-white/90 truncate">{item.title}</div>
-        <div className="text-white/80 opacity-80 flex items-center justify-between">
-          <span>{item.category}</span>
-          {item.type === "event" && item.sharedLabel ? (
-            <span className="ml-2 bg-black/20 rounded px-1.5 py-0.5">{item.sharedLabel}</span>
-          ) : null}
-        </div>
-      </motion.div>
-    </DraggableBlock>
   );
 }
 
