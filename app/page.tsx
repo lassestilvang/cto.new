@@ -27,14 +27,20 @@ export default function HomePage() {
   const end = addDays(start, 4);
   const days = useMemo(() => Array.from({ length: 5 }, (_, i) => addDays(start, i)), [start]);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [draggedItem, setDraggedItem] = useState<{ id: string; kind: string } | null>(null);
 
   function onDragStart(e: DragStartEvent) {
     setActiveId(String(e.active.id));
+    const data = e.active.data.current as any;
+    if (data) {
+      setDraggedItem({ id: data.id, kind: data.kind });
+    }
   }
 
   function onDragEnd(e: DragEndEvent) {
     const { active, over } = e;
     setActiveId(null);
+    setDraggedItem(null);
     if (!over) return;
     const data = active.data.current as any;
     const overData = over.data.current as any;
@@ -83,7 +89,7 @@ export default function HomePage() {
               <NewItemDialog />
             </div>
           </motion.div>
-          <WeeklyCalendar />
+          <WeeklyCalendar draggedItem={draggedItem} />
         </div>
       </div>
       <DragOverlay>{activeId ? <DragGhost /> : null}</DragOverlay>
