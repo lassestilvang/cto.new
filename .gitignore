@@ -1,3 +1,5 @@
+tsconfig.tsbuildinfo
+
 # Node
 node_modules
 npm-debug.log*
