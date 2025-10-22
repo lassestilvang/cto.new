@@ -54,8 +54,14 @@ function overlaps(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date) {
 
 function isSameDayUTC(a: Date, b: Date) {
   return a.getUTCFullYear() === b.getUTCFullYear() &&
-         a.getUTCMonth() === b.getUTCMonth() &&
-         a.getUTCDate() === b.getUTCDate();
+          a.getUTCMonth() === b.getUTCMonth() &&
+          a.getUTCDate() === b.getUTCDate();
+}
+
+function isSameDayLocal(a: Date, b: Date) {
+  return a.getFullYear() === b.getFullYear() &&
+          a.getMonth() === b.getMonth() &&
+          a.getDate() === b.getDate();
 }
 
 export const usePlanner = create<PlannerStore>()(
@@ -127,18 +133,18 @@ export const usePlanner = create<PlannerStore>()(
       },
 
       scheduleTask(id, startISO, endISO) {
-        const conflicts = get().conflictsAt(startISO, endISO, id);
-        if (conflicts.length) throw new Error("Conflicts with existing items");
         const item = get().items[id];
         if (!item || item.type !== "task") throw new Error("Not a task");
+        const conflicts = get().conflictsAt(startISO, endISO);
+        if (conflicts.length) throw new Error("Conflicts with existing items");
         get().updateItem(id, { scheduledStart: startISO, scheduledEnd: endISO });
       },
 
       moveEvent(id, startISO, endISO) {
-        const conflicts = get().conflictsAt(startISO, endISO, id);
-        if (conflicts.length) throw new Error("Conflicts with existing items");
         const item = get().items[id];
         if (!item || item.type !== "event") throw new Error("Not an event");
+        const conflicts = get().conflictsAt(startISO, endISO, id);
+        if (conflicts.length) throw new Error("Conflicts with existing items");
         get().updateItem(id, { start: startISO, end: endISO });
       },
 
@@ -162,17 +168,25 @@ export const usePlanner = create<PlannerStore>()(
 
       getItemsForDay(d) {
         const result: BlockItem[] = [];
-        const dateStr = formatISO(d, { representation: "date" });
+        // Convert input date to UTC date string to match how events are stored
+        const targetDate = formatISO(d, { representation: "date" });
         for (const it of Object.values(get().items)) {
           if (it.type === "event") {
-            if (isSameDayUTC(new Date(it.start), d)) result.push(it);
+            const eventDate = formatISO(new Date(it.start), { representation: "date" });
+            if (eventDate === targetDate) result.push(it);
           } else {
-            if (it.scheduledStart && isSameDayUTC(new Date(it.scheduledStart), d)) result.push(it);
+            if (it.scheduledStart) {
+              const taskDate = formatISO(new Date(it.scheduledStart), { representation: "date" });
+              if (taskDate === targetDate) result.push(it);
+            }
           }
         }
         return result.sort((a, b) => {
-          const aStart = a.type === "event" ? a.start : a.scheduledStart ?? isoDate(setMinutes(setHours(d, 0), 0));
-          const bStart = b.type === "event" ? b.start : b.scheduledStart ?? isoDate(setMinutes(setHours(d, 0), 0));
+          const aStart = a.type === "event" ? a.start : a.scheduledStart;
+          const bStart = b.type === "event" ? b.start : b.scheduledStart;
+          if (!aStart && !bStart) return 0;
+          if (!aStart) return 1;
+          if (!bStart) return -1;
           return +new Date(aStart) - +new Date(bStart);
         });
       }

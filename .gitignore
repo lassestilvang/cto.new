@@ -1,4 +1,5 @@
 tsconfig.tsbuildinfo
+test-results/
 
 # Node
 node_modules
