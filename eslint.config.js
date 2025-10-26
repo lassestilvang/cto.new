@@ -2,9 +2,11 @@ const js = require("@eslint/js");
 const globals = require("globals");
 
 module.exports = [
+    {
+        ignores: [".next/**", "node_modules/**", "coverage/**"],
+    },
     js.configs.recommended,
     {
-        ignores: [".next/**", "node_modules/**"],
         languageOptions: {
             globals: {
                 ...globals.browser,
