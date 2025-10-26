@@ -1,21 +1,23 @@
 "use client";
 
 import { addDays, format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, addHours } from "date-fns";
-import { useMemo, useState } from "react";
+import { useMemo, useState, memo } from "react";
 import { usePlanner } from "@/lib/store";
 import { isoDate } from "@/lib/utils";
 import type { BlockItem } from "@/types/scheduler";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import FullCalendar from "@fullcalendar/react";
+import dynamic from "next/dynamic";
+import type { EventInput } from "@fullcalendar/core";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
-import type { EventInput } from "@fullcalendar/core";
+
+const FullCalendar = dynamic(() => import("@fullcalendar/react"), { ssr: false });
 import { toast } from "sonner";
 import { EditItemDialog } from "@/components/edit-item-dialog";
 
-export function WeeklyCalendar({ view = 'week', draggedItem }: { view?: 'week' | 'day' | 'month'; draggedItem?: { id: string; kind: string } | null }) {
+export const WeeklyCalendar = memo(function WeeklyCalendar({ view = 'week', draggedItem }: { view?: 'week' | 'day' | 'month'; draggedItem?: { id: string; kind: string } | null }) {
   const weekStart = usePlanner(s => s.weekStart);
   const getItemsForDay = usePlanner(s => s.getItemsForDay);
   const addTask = usePlanner(s => s.addTask);
@@ -246,5 +248,5 @@ export function WeeklyCalendar({ view = 'week', draggedItem }: { view?: 'week' |
       <EditItemDialog itemId={editingItemId} onClose={() => setEditingItemId(null)} />
     </div>
   );
-}
+});
 
