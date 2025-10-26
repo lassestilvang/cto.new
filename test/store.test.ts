@@ -1,6 +1,4 @@
-import { usePlanner } from '@/lib/store';
-import { addDays, setHours, setMinutes } from 'date-fns';
-import { usePlanner } from '@/lib/store';
+import { usePlanner, isSameDayUTC } from '@/lib/store';
 import { addDays, setHours, setMinutes } from 'date-fns';
 
 describe('Planner store', () => {
@@ -424,17 +422,37 @@ describe('Planner store', () => {
     it('returns true for same UTC date', () => {
       const a = new Date('2023-01-01T10:00:00.000Z');
       const b = new Date('2023-01-01T15:00:00.000Z');
-      expect(a.getUTCFullYear() === b.getUTCFullYear() &&
-             a.getUTCMonth() === b.getUTCMonth() &&
-             a.getUTCDate() === b.getUTCDate()).toBe(true);
+      expect(isSameDayUTC(a, b)).toBe(true);
     });
 
     it('returns false for different UTC dates', () => {
       const a = new Date('2023-01-01T10:00:00.000Z');
       const b = new Date('2023-01-02T10:00:00.000Z');
-      expect(a.getUTCFullYear() === b.getUTCFullYear() &&
-             a.getUTCMonth() === b.getUTCMonth() &&
-             a.getUTCDate() === b.getUTCDate()).toBe(false);
+      expect(isSameDayUTC(a, b)).toBe(false);
+    });
+
+    it('returns true for same UTC date across midnight UTC', () => {
+      const a = new Date('2023-01-01T23:59:59.999Z');
+      const b = new Date('2023-01-02T00:00:00.000Z');
+      expect(isSameDayUTC(a, b)).toBe(false);
+    });
+
+    it('returns false for different years in UTC', () => {
+      const a = new Date('2023-01-01T10:00:00.000Z');
+      const b = new Date('2024-01-01T10:00:00.000Z');
+      expect(isSameDayUTC(a, b)).toBe(false);
+    });
+
+    it('returns false for different months in UTC', () => {
+      const a = new Date('2023-01-01T10:00:00.000Z');
+      const b = new Date('2023-02-01T10:00:00.000Z');
+      expect(isSameDayUTC(a, b)).toBe(false);
+    });
+
+    it('returns true for same UTC date with different times', () => {
+      const a = new Date('2023-01-01T00:00:00.000Z');
+      const b = new Date('2023-01-01T23:59:59.999Z');
+      expect(isSameDayUTC(a, b)).toBe(true);
     });
   });
 
@@ -453,6 +471,77 @@ describe('Planner store', () => {
       expect(a.getFullYear() === b.getFullYear() &&
              a.getMonth() === b.getMonth() &&
              a.getDate() === b.getDate()).toBe(false);
+    });
+  });
+
+  describe('demo seeding logic', () => {
+    beforeEach(() => {
+      // Mock window and localStorage for browser environment
+      Object.defineProperty(global, 'window', {
+        value: {
+          localStorage: {
+            getItem: jest.fn(),
+            setItem: jest.fn(),
+            removeItem: jest.fn(),
+            clear: jest.fn(),
+          },
+        },
+        writable: true,
+      });
+    });
+
+    afterEach(() => {
+      // Clean up window mock
+      delete (global as any).window;
+    });
+
+    it('seeds demo data when localStorage has not been seeded', () => {
+      // Mock localStorage to return null (not seeded)
+      (global.window.localStorage.getItem as jest.Mock).mockReturnValue(null);
+
+      // Re-import the store to trigger the seeding logic
+      jest.resetModules();
+      const storeModule = require('@/lib/store');
+
+      // Access the store to ensure initialization
+      const store = storeModule.usePlanner.getState();
+
+      // Check that setItem was called to mark as seeded
+      expect(global.window.localStorage.setItem).toHaveBeenCalledWith('planner-seeded', '1');
+    });
+
+    it('does not seed demo data when already seeded', () => {
+      // Mock localStorage to return '1' (already seeded)
+      (global.window.localStorage.getItem as jest.Mock).mockReturnValue('1');
+
+      // Re-import the store
+      jest.resetModules();
+      require('@/lib/store');
+
+      // Check that setItem was not called again
+      expect(global.window.localStorage.setItem).not.toHaveBeenCalledWith('planner-seeded', '1');
+    });
+
+    it('seeds demo event and task', () => {
+      (global.window.localStorage.getItem as jest.Mock).mockReturnValue(null);
+
+      jest.resetModules();
+      const { usePlanner } = require('@/lib/store');
+
+      // Trigger seeding by accessing the store
+      const store = usePlanner.getState();
+
+      // Check that demo data was added
+      const items = Object.values(store.items);
+      expect(items.length).toBeGreaterThan(0);
+
+      // Check for demo event
+      const demoEvent = items.find(item => item.type === 'event' && item.title === 'Standup');
+      expect(demoEvent).toBeDefined();
+
+      // Check for demo task
+      const demoTask = items.find(item => item.type === 'task' && item.title === 'Plan user interviews');
+      expect(demoTask).toBeDefined();
     });
   });
 });
