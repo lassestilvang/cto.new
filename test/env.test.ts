@@ -1,3 +1,4 @@
+import { z } from 'zod';
 describe('env', () => {
   const originalEnv = process.env;
 
@@ -26,7 +27,7 @@ describe('env', () => {
       expect(env.NEXTAUTH_URL).toBe('http://localhost:3000');
       expect(env.UPSTASH_REDIS_URL).toBe('');
       expect(env.UPSTASH_REDIS_TOKEN).toBe('');
-      expect(env.USE_DEMO_DATA).toBe('true');
+      expect(env.USE_DEMO_DATA).toBe(true);
     });
 
     it('should return environment variable values when set', () => {
@@ -44,7 +45,7 @@ describe('env', () => {
       expect(env.NEXTAUTH_URL).toBe('https://example.com');
       expect(env.UPSTASH_REDIS_URL).toBe('test-redis-url');
       expect(env.UPSTASH_REDIS_TOKEN).toBe('test-redis-token');
-      expect(env.USE_DEMO_DATA).toBe('false');
+      expect(env.USE_DEMO_DATA).toBe(false);
     });
 
     it('should handle partial environment variables', () => {
@@ -62,7 +63,7 @@ describe('env', () => {
       expect(env.NEXTAUTH_URL).toBe('https://partial.com');
       expect(env.UPSTASH_REDIS_URL).toBe('');
       expect(env.UPSTASH_REDIS_TOKEN).toBe('');
-      expect(env.USE_DEMO_DATA).toBe('true');
+      expect(env.USE_DEMO_DATA).toBe(true);
     });
   });
 
@@ -145,6 +146,34 @@ describe('env', () => {
       const { isDemo } = require('../lib/env');
 
       expect(isDemo()).toBe(true);
+    });
+  });
+
+  describe('env schema', () => {
+    it('should parse env schema successfully', () => {
+      const schema = z.object({
+        DATABASE_URL: z.string().optional().default(''),
+        NEXTAUTH_SECRET: z.string().optional().default('dev-secret'),
+        NEXTAUTH_URL: z.string().optional().default('http://localhost:3000'),
+        UPSTASH_REDIS_URL: z.string().optional().default(''),
+        UPSTASH_REDIS_TOKEN: z.string().optional().default(''),
+        USE_DEMO_DATA: z.string().optional().default('true')
+      }).transform((env) => ({
+        DATABASE_URL: env.DATABASE_URL || '',
+        NEXTAUTH_SECRET: env.NEXTAUTH_SECRET || 'dev-secret',
+        NEXTAUTH_URL: env.NEXTAUTH_URL || 'http://localhost:3000',
+        UPSTASH_REDIS_URL: env.UPSTASH_REDIS_URL || '',
+        UPSTASH_REDIS_TOKEN: env.UPSTASH_REDIS_TOKEN || '',
+        USE_DEMO_DATA: env.USE_DEMO_DATA === 'true'
+      }));
+
+      const result = schema.parse({});
+      expect(result.DATABASE_URL).toBe('');
+      expect(result.NEXTAUTH_SECRET).toBe('dev-secret');
+      expect(result.NEXTAUTH_URL).toBe('http://localhost:3000');
+      expect(result.UPSTASH_REDIS_URL).toBe('');
+      expect(result.UPSTASH_REDIS_TOKEN).toBe('');
+      expect(result.USE_DEMO_DATA).toBe(true);
     });
   });
 });
