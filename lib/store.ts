@@ -197,7 +197,7 @@ export const usePlanner = create<PlannerStore>()(
 
 // Seed some demo content on first run
 if (typeof window !== "undefined") {
-  const hasSeeded = localStorage.getItem("planner-seeded");
+  const hasSeeded = window.localStorage.getItem("planner-seeded");
   if (!hasSeeded) {
     const store = usePlanner.getState();
     const now = new Date();
@@ -222,6 +222,6 @@ if (typeof window !== "undefined") {
     ] });
     store.scheduleTask(taskId, isoDate(today13), isoDate(today14));
 
-    localStorage.setItem("planner-seeded", "1");
+    window.localStorage.setItem("planner-seeded", "1");
   }
 }
