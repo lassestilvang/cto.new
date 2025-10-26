@@ -47,8 +47,8 @@ export default function HomePage() {
     if (!overData || overData.type !== "slot") return;
     const dayIdx: number = overData.dayIdx;
     const hour: number = overData.hour;
-    const startISO = isoDate(setMinutes(setHours(days[dayIdx], hour), 0));
-    const endISO = isoDate(setMinutes(setHours(days[dayIdx], hour + 1), 0));
+    const startISO = isoDate(setMinutes(setHours(days[dayIdx]!, hour), 0));
+    const endISO = isoDate(setMinutes(setHours(days[dayIdx]!, hour + 1), 0));
     try {
       if (data.kind === "task") {
         scheduleTask(data.id, startISO, endISO);
