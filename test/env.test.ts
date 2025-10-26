@@ -65,6 +65,24 @@ describe('env', () => {
       expect(env.UPSTASH_REDIS_TOKEN).toBe('');
       expect(env.USE_DEMO_DATA).toBe(true);
     });
+
+    it('should use fallback values when NEXTAUTH_SECRET and NEXTAUTH_URL are set to empty strings', () => {
+      delete process.env.DATABASE_URL;
+      process.env.NEXTAUTH_SECRET = '';
+      process.env.NEXTAUTH_URL = '';
+      delete process.env.UPSTASH_REDIS_URL;
+      delete process.env.UPSTASH_REDIS_TOKEN;
+      delete process.env.USE_DEMO_DATA;
+
+      const { env } = require('../lib/env');
+
+      expect(env.DATABASE_URL).toBe('');
+      expect(env.NEXTAUTH_SECRET).toBe('dev-secret');
+      expect(env.NEXTAUTH_URL).toBe('http://localhost:3000');
+      expect(env.UPSTASH_REDIS_URL).toBe('');
+      expect(env.UPSTASH_REDIS_TOKEN).toBe('');
+      expect(env.USE_DEMO_DATA).toBe(true);
+    });
   });
 
   describe('isDemo', () => {
