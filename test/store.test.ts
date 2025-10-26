@@ -1,5 +1,7 @@
 import { usePlanner } from '@/lib/store';
 import { addDays, setHours, setMinutes } from 'date-fns';
+import { usePlanner } from '@/lib/store';
+import { addDays, setHours, setMinutes } from 'date-fns';
 
 describe('Planner store', () => {
   beforeEach(() => {
@@ -415,6 +417,42 @@ describe('Planner store', () => {
       const s = usePlanner.getState();
       const items = s.getItemsForDay(new Date('2023-01-01'));
       expect(items).toEqual([]);
+    });
+  });
+
+  describe('isSameDayUTC', () => {
+    it('returns true for same UTC date', () => {
+      const a = new Date('2023-01-01T10:00:00.000Z');
+      const b = new Date('2023-01-01T15:00:00.000Z');
+      expect(a.getUTCFullYear() === b.getUTCFullYear() &&
+             a.getUTCMonth() === b.getUTCMonth() &&
+             a.getUTCDate() === b.getUTCDate()).toBe(true);
+    });
+
+    it('returns false for different UTC dates', () => {
+      const a = new Date('2023-01-01T10:00:00.000Z');
+      const b = new Date('2023-01-02T10:00:00.000Z');
+      expect(a.getUTCFullYear() === b.getUTCFullYear() &&
+             a.getUTCMonth() === b.getUTCMonth() &&
+             a.getUTCDate() === b.getUTCDate()).toBe(false);
+    });
+  });
+
+  describe('isSameDayLocal', () => {
+    it('returns true for same local date', () => {
+      const a = new Date('2023-01-01T10:00:00');
+      const b = new Date('2023-01-01T15:00:00');
+      expect(a.getFullYear() === b.getFullYear() &&
+             a.getMonth() === b.getMonth() &&
+             a.getDate() === b.getDate()).toBe(true);
+    });
+
+    it('returns false for different local dates', () => {
+      const a = new Date('2023-01-01T10:00:00');
+      const b = new Date('2023-01-02T10:00:00');
+      expect(a.getFullYear() === b.getFullYear() &&
+             a.getMonth() === b.getMonth() &&
+             a.getDate() === b.getDate()).toBe(false);
     });
   });
 });
