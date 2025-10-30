@@ -533,15 +533,15 @@ describe('Planner store', () => {
       const store = usePlanner.getState();
 
       // Check that demo data was added
-      const items = Object.values(store.items);
+      const items = Object.values(store.items) as BlockItem[];
       expect(items.length).toBeGreaterThan(0);
 
       // Check for demo event
-      const demoEvent = items.find((item: BlockItem) => item.type === 'event' && item.title === 'Standup');
+      const demoEvent = items.find(item => item.type === 'event' && item.title === 'Standup');
       expect(demoEvent).toBeDefined();
 
       // Check for demo task
-      const demoTask = items.find((item: BlockItem) => item.type === 'task' && item.title === 'Plan user interviews');
+      const demoTask = items.find(item => item.type === 'task' && item.title === 'Plan user interviews');
       expect(demoTask).toBeDefined();
     });
   });
