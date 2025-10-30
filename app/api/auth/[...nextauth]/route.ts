@@ -6,7 +6,9 @@ import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { getDb } from "@/lib/db";
 import { env, isDemo } from "@/lib/env";
 
-const authOptions = {
+export const runtime = "nodejs";
+
+const handler = NextAuth({
   secret: env.NEXTAUTH_SECRET,
   session: { strategy: "jwt" as const },
   adapter: getDb() ? DrizzleAdapter(getDb() as any) : undefined,
@@ -43,8 +45,6 @@ const authOptions = {
       return session;
     }
   }
-};
-
-const handler = NextAuth(authOptions);
+});
 
 export { handler as GET, handler as POST };
