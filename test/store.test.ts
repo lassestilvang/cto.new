@@ -1,5 +1,6 @@
 import { usePlanner, isSameDayUTC } from '@/lib/store';
 import { addDays, setHours, setMinutes } from 'date-fns';
+import type { BlockItem, Task } from '@/types/scheduler';
 
 describe('Planner store', () => {
   beforeEach(() => {
@@ -72,13 +73,13 @@ describe('Planner store', () => {
     it('adds a task with minimal input', () => {
       const s = usePlanner.getState();
       const id = s.addTask({ title: 'New Task' });
-      const task = usePlanner.getState().items[id];
+      const task = usePlanner.getState().items[id] as Task;
       expect(task).toBeDefined();
-      expect(task.type).toBe('task');
-      expect(task.title).toBe('New Task');
-      expect(task.category).toBe('Inbox');
-      expect(task.completed).toBe(false);
-      expect(task.priority).toBe('medium');
+      expect(task?.type).toBe('task');
+      expect(task?.title).toBe('New Task');
+      expect(task?.category).toBe('Inbox');
+      expect(task?.completed).toBe(false);
+      expect(task?.priority).toBe('medium');
     });
 
     it('adds a task with full input', () => {
@@ -92,14 +93,14 @@ describe('Planner store', () => {
         priority: 'high',
         subtasks: [{ id: 'sub1', title: 'Subtask', completed: false }]
       });
-      const task = usePlanner.getState().items[id];
-      expect(task.title).toBe('Full Task');
-      expect(task.description).toBe('Description');
-      expect(task.category).toBe('Work');
-      expect(task.dueDate).toBe('2023-01-15');
-      expect(task.completed).toBe(true);
-      expect(task.priority).toBe('high');
-      expect(task.subtasks).toHaveLength(1);
+      const task = usePlanner.getState().items[id] as Task;
+      expect(task?.title).toBe('Full Task');
+      expect(task?.description).toBe('Description');
+      expect(task?.category).toBe('Work');
+      expect(task?.dueDate).toBe('2023-01-15');
+      expect(task?.completed).toBe(true);
+      expect(task?.priority).toBe('high');
+      expect(task?.subtasks).toHaveLength(1);
     });
 
     it('adds task to order array', () => {
@@ -117,12 +118,16 @@ describe('Planner store', () => {
       const id = s.addEvent({ title: 'New Event', start, end });
       const event = usePlanner.getState().items[id];
       expect(event).toBeDefined();
-      expect(event.type).toBe('event');
-      expect(event.title).toBe('New Event');
-      expect(event.start).toBe(start);
-      expect(event.end).toBe(end);
-      expect(event.category).toBe('Work');
-      expect(event.allDay).toBe(false);
+      expect(event?.type).toBe('event');
+      expect(event?.title).toBe('New Event');
+      if (event?.type === 'event') {
+        expect(event.start).toBe(start);
+        expect(event.end).toBe(end);
+      }
+      expect(event?.category).toBe('Work');
+      if (event?.type === 'event') {
+        expect(event.allDay).toBe(false);
+      }
     });
 
     it('adds an event with full input', () => {
@@ -141,13 +146,15 @@ describe('Planner store', () => {
         source: 'google'
       });
       const event = usePlanner.getState().items[id];
-      expect(event.title).toBe('Full Event');
-      expect(event.description).toBe('Description');
-      expect(event.category).toBe('Personal');
-      expect(event.attendees).toEqual(['u2']);
-      expect(event.allDay).toBe(true);
-      expect(event.sharedLabel).toBe('Shared');
-      expect(event.source).toBe('google');
+      expect(event?.title).toBe('Full Event');
+      expect(event?.description).toBe('Description');
+      expect(event?.category).toBe('Personal');
+      if (event?.type === 'event') {
+        expect(event.attendees).toEqual(['u2']);
+        expect(event.allDay).toBe(true);
+        expect(event.sharedLabel).toBe('Shared');
+        expect(event.source).toBe('google');
+      }
     });
 
     it('adds event to order array', () => {
@@ -165,7 +172,7 @@ describe('Planner store', () => {
       const id = s.addTask({ title: 'Original' });
       s.updateItem(id, { title: 'Updated' });
       const updated = usePlanner.getState().items[id];
-      expect(updated.title).toBe('Updated');
+      expect(updated?.title).toBe('Updated');
     });
 
     it('handles updating non-existent item', () => {
@@ -232,9 +239,9 @@ describe('Planner store', () => {
       const start = '2023-01-01T10:00:00.000Z';
       const end = '2023-01-01T11:00:00.000Z';
       s.scheduleTask(id, start, end);
-      const task = usePlanner.getState().items[id];
-      expect(task.scheduledStart).toBe(start);
-      expect(task.scheduledEnd).toBe(end);
+      const task = usePlanner.getState().items[id] as Task;
+      expect(task?.scheduledStart).toBe(start);
+      expect(task?.scheduledEnd).toBe(end);
     });
 
     it('throws error for non-task item', () => {
@@ -263,8 +270,10 @@ describe('Planner store', () => {
       const id = s.addEvent({ title: 'Event', start, end });
       s.moveEvent(id, newStart, newEnd);
       const updated = usePlanner.getState().items[id];
-      expect(updated.start).toBe(newStart);
-      expect(updated.end).toBe(newEnd);
+      if (updated?.type === 'event') {
+        expect(updated.start).toBe(newStart);
+        expect(updated.end).toBe(newEnd);
+      }
     });
 
     it('throws error on conflict', () => {
@@ -305,8 +314,10 @@ describe('Planner store', () => {
       const newEnd = '2023-01-01T13:00:00.000Z';
       s.moveEvent(id, newStart, newEnd);
       const event = usePlanner.getState().items[id];
-      expect(event.start).toBe(newStart);
-      expect(event.end).toBe(newEnd);
+      if (event?.type === 'event') {
+        expect(event.start).toBe(newStart);
+        expect(event.end).toBe(newEnd);
+      }
     });
 
     it('throws error for non-event item', () => {
@@ -344,7 +355,7 @@ describe('Planner store', () => {
       const checkEnd = '2023-01-01T11:30:00.000Z';
       const conflicts = s.conflictsAt(checkStart, checkEnd);
       expect(conflicts.length).toBe(1);
-      expect(conflicts[0].overlapMinutes).toBe(30);
+      expect(conflicts[0]?.overlapMinutes).toBe(30);
     });
 
     it('detects overlap with event', () => {
@@ -397,9 +408,9 @@ describe('Planner store', () => {
       s.scheduleTask(id3, '2023-01-01T08:00:00.000Z', '2023-01-01T09:00:00.000Z');
       const items = s.getItemsForDay(new Date('2023-01-01'));
       expect(items.length).toBe(3);
-      expect(items[0].id).toBe(id3);
-      expect(items[1].id).toBe(id2);
-      expect(items[2].id).toBe(id1);
+      expect(items[0]?.id).toBe(id3);
+      expect(items[1]?.id).toBe(id2);
+      expect(items[2]?.id).toBe(id1);
     });
 
     it('handles unscheduled tasks in sorting', () => {
@@ -408,7 +419,7 @@ describe('Planner store', () => {
       const id2 = s.addTask({ title: 'Unscheduled Task' });
       const items = s.getItemsForDay(new Date('2023-01-01'));
       expect(items.length).toBe(1);
-      expect(items[0].id).toBe(id1);
+      expect(items[0]?.id).toBe(id1);
     });
 
     it('returns empty array for day with no items', () => {
@@ -536,11 +547,11 @@ describe('Planner store', () => {
       expect(items.length).toBeGreaterThan(0);
 
       // Check for demo event
-      const demoEvent = items.find(item => item.type === 'event' && item.title === 'Standup');
+      const demoEvent = items.find((item: BlockItem) => item.type === 'event' && item.title === 'Standup');
       expect(demoEvent).toBeDefined();
 
       // Check for demo task
-      const demoTask = items.find(item => item.type === 'task' && item.title === 'Plan user interviews');
+      const demoTask = items.find((item: BlockItem) => item.type === 'task' && item.title === 'Plan user interviews');
       expect(demoTask).toBeDefined();
     });
   });
