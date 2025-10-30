@@ -1,6 +1,6 @@
 import { usePlanner, isSameDayUTC } from '@/lib/store';
 import { addDays, setHours, setMinutes } from 'date-fns';
-import type { BlockItem, Task } from '@/types/scheduler';
+import type { BlockItem, Task, CalendarEvent } from '@/types/scheduler';
 
 describe('Planner store', () => {
   beforeEach(() => {
@@ -116,18 +116,14 @@ describe('Planner store', () => {
       const start = '2023-01-01T10:00:00.000Z';
       const end = '2023-01-01T11:00:00.000Z';
       const id = s.addEvent({ title: 'New Event', start, end });
-      const event = usePlanner.getState().items[id];
+      const event = usePlanner.getState().items[id] as CalendarEvent;
       expect(event).toBeDefined();
       expect(event?.type).toBe('event');
       expect(event?.title).toBe('New Event');
-      if (event?.type === 'event') {
-        expect(event.start).toBe(start);
-        expect(event.end).toBe(end);
-      }
+      expect(event?.start).toBe(start);
+      expect(event?.end).toBe(end);
       expect(event?.category).toBe('Work');
-      if (event?.type === 'event') {
-        expect(event.allDay).toBe(false);
-      }
+      expect(event?.allDay).toBe(false);
     });
 
     it('adds an event with full input', () => {
@@ -145,16 +141,14 @@ describe('Planner store', () => {
         sharedLabel: 'Shared',
         source: 'google'
       });
-      const event = usePlanner.getState().items[id];
+      const event = usePlanner.getState().items[id] as CalendarEvent;
       expect(event?.title).toBe('Full Event');
       expect(event?.description).toBe('Description');
       expect(event?.category).toBe('Personal');
-      if (event?.type === 'event') {
-        expect(event.attendees).toEqual(['u2']);
-        expect(event.allDay).toBe(true);
-        expect(event.sharedLabel).toBe('Shared');
-        expect(event.source).toBe('google');
-      }
+      expect(event?.attendees).toEqual(['u2']);
+      expect(event?.allDay).toBe(true);
+      expect(event?.sharedLabel).toBe('Shared');
+      expect(event?.source).toBe('google');
     });
 
     it('adds event to order array', () => {
@@ -547,11 +541,11 @@ describe('Planner store', () => {
       expect(items.length).toBeGreaterThan(0);
 
       // Check for demo event
-      const demoEvent = items.find((item: BlockItem) => item.type === 'event' && item.title === 'Standup');
+      const demoEvent = items.find(item => item.type === 'event' && item.title === 'Standup');
       expect(demoEvent).toBeDefined();
 
       // Check for demo task
-      const demoTask = items.find((item: BlockItem) => item.type === 'task' && item.title === 'Plan user interviews');
+      const demoTask = items.find(item => item.type === 'task' && item.title === 'Plan user interviews');
       expect(demoTask).toBeDefined();
     });
   });
