@@ -263,11 +263,9 @@ describe('Planner store', () => {
       const newEnd = '2023-01-01T13:00:00.000Z';
       const id = s.addEvent({ title: 'Event', start, end });
       s.moveEvent(id, newStart, newEnd);
-      const updated = usePlanner.getState().items[id];
-      if (updated?.type === 'event') {
-        expect(updated.start).toBe(newStart);
-        expect(updated.end).toBe(newEnd);
-      }
+      const updated = usePlanner.getState().items[id] as CalendarEvent;
+      expect(updated?.start).toBe(newStart);
+      expect(updated?.end).toBe(newEnd);
     });
 
     it('throws error on conflict', () => {
@@ -307,11 +305,9 @@ describe('Planner store', () => {
       const newStart = '2023-01-01T12:00:00.000Z';
       const newEnd = '2023-01-01T13:00:00.000Z';
       s.moveEvent(id, newStart, newEnd);
-      const event = usePlanner.getState().items[id];
-      if (event?.type === 'event') {
-        expect(event.start).toBe(newStart);
-        expect(event.end).toBe(newEnd);
-      }
+      const event = usePlanner.getState().items[id] as CalendarEvent;
+      expect(event?.start).toBe(newStart);
+      expect(event?.end).toBe(newEnd);
     });
 
     it('throws error for non-event item', () => {
@@ -541,11 +537,11 @@ describe('Planner store', () => {
       expect(items.length).toBeGreaterThan(0);
 
       // Check for demo event
-      const demoEvent = items.find(item => item.type === 'event' && item.title === 'Standup');
+      const demoEvent = items.find((item: BlockItem) => item.type === 'event' && item.title === 'Standup');
       expect(demoEvent).toBeDefined();
 
       // Check for demo task
-      const demoTask = items.find(item => item.type === 'task' && item.title === 'Plan user interviews');
+      const demoTask = items.find((item: BlockItem) => item.type === 'task' && item.title === 'Plan user interviews');
       expect(demoTask).toBeDefined();
     });
   });
