@@ -5,8 +5,6 @@ import { useMemo, useState, memo } from "react";
 import { usePlanner } from "@/lib/store";
 import { isoDate } from "@/lib/utils";
 import type { BlockItem } from "@/types/scheduler";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import dynamic from "next/dynamic";
 import type { EventInput } from "@fullcalendar/core";
 import timeGridPlugin from "@fullcalendar/timegrid";
@@ -16,6 +14,8 @@ import interactionPlugin from "@fullcalendar/interaction";
 const FullCalendar = dynamic(() => import("@fullcalendar/react"), { ssr: false });
 import { toast } from "sonner";
 import { EditItemDialog } from "@/components/edit-item-dialog";
+import { CalendarEventContent } from "@/components/calendar/calendar-event-content";
+import { CalendarQuickAdd } from "@/components/calendar/calendar-quick-add";
 
 export const WeeklyCalendar = memo(function WeeklyCalendar({ view = 'week', draggedItem }: { view?: 'week' | 'day' | 'month'; draggedItem?: { id: string; kind: string } | null }) {
   const weekStart = usePlanner(s => s.weekStart);
@@ -70,18 +70,6 @@ export const WeeklyCalendar = memo(function WeeklyCalendar({ view = 'week', drag
 
   function handleSelect(selectInfo: any) {
     setQuickAdd({ start: selectInfo.start, end: selectInfo.end });
-  }
-
-  function handleQuickAdd() {
-    if (!quickAdd || !title.trim()) return;
-    addTask({
-      title: title.trim(),
-      category: "Inbox",
-      scheduledStart: isoDate(quickAdd.start),
-      scheduledEnd: isoDate(quickAdd.end)
-    });
-    setTitle("");
-    setQuickAdd(null);
   }
 
   function handleDatesSet(dateInfo: any) {
@@ -214,36 +202,16 @@ export const WeeklyCalendar = memo(function WeeklyCalendar({ view = 'week', drag
         eventResize={view !== 'month' ? handleEventResize : undefined}
         eventDrop={view !== 'month' ? handleEventDrop : undefined}
         eventClick={handleEventClick}
-        eventContent={(eventInfo) => (
-          <div className={`p-1 ${view === 'month' ? 'text-[10px]' : 'text-xs'}`}>
-            <div className="font-medium truncate">{eventInfo.event.title}</div>
-            {view !== 'month' && (
-              <div className="flex items-center justify-between opacity-80">
-                <span>{eventInfo.event.extendedProps.category}</span>
-                {eventInfo.event.extendedProps.sharedLabel && (
-                  <span className="ml-1 bg-black/20 rounded px-1 text-[10px]">{eventInfo.event.extendedProps.sharedLabel}</span>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+        eventContent={(eventInfo) => <CalendarEventContent view={view} eventInfo={eventInfo} />}
       />
 
-      {quickAdd ? (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-popover border border-border rounded-lg p-2 shadow z-50">
-          <div className="flex gap-2 items-center">
-            <Input
-              autoFocus
-              placeholder="New task title"
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && handleQuickAdd()}
-            />
-            <Button onClick={handleQuickAdd}>Add</Button>
-            <Button variant="ghost" onClick={() => setQuickAdd(null)}>Cancel</Button>
-          </div>
-        </div>
-      ) : null}
+      <CalendarQuickAdd
+        quickAdd={quickAdd}
+        setQuickAdd={setQuickAdd}
+        addTask={addTask}
+        title={title}
+        setTitle={setTitle}
+      />
 
       <EditItemDialog itemId={editingItemId} onClose={() => setEditingItemId(null)} />
     </div>
