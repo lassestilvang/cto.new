@@ -6,9 +6,11 @@ import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { getDb } from "@/lib/db";
 import { env, isDemo } from "@/lib/env";
 
+export const runtime = "nodejs";
+
 const handler = NextAuth({
   secret: env.NEXTAUTH_SECRET,
-  session: { strategy: "jwt" },
+  session: { strategy: "jwt" as const },
   adapter: getDb() ? DrizzleAdapter(getDb() as any) : undefined,
   providers: [
     ...(isDemo() ? [
@@ -34,11 +36,11 @@ const handler = NextAuth({
     ])
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user }: { token: any; user?: any }) {
       if (user) token.id = user.id;
       return token;
     },
-    async session({ session, token }) {
+    async session({ session, token }: { session: any; token: any }) {
       session.user.id = token.id as string;
       return session;
     }
